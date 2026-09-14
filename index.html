@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CueNav — Seeing What Matters</title>
+<meta name="description" content="CueNav: visual cue guided video planning for generalizable robot navigation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&family=IBM+Plex+Mono:wght@400;450&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+/* demo */
+.demo{padding:14px 0 88px}
+.demo-head{border-top:1px solid var(--rule);padding-top:18px;margin-bottom:18px}
+.demo-head h2{font-size:19px;font-weight:500;margin:0 0 3px;letter-spacing:-.012em}
+.demo-head p{margin:0;font-size:19px;font-weight:400;color:var(--ink-2);letter-spacing:-.012em}
+.demo-head p.prompt{margin:14px 0 0;font-family:var(--mono);font-size:13.5px;letter-spacing:0;
+  color:var(--ink);border-left:2px solid var(--cyan);padding-left:12px}
+.rig{display:grid;grid-template-columns:minmax(0,1fr) 316px;gap:20px;align-items:start}
+@media (max-width:940px){.rig{grid-template-columns:1fr}}
+
+/* control bar */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  border:1px solid var(--rule);border-bottom:0;border-radius:8px 8px 0 0;
+  background:var(--surface);padding:10px 12px}
+.seg{display:flex;align-items:center;gap:9px}
+.seg-lab{font-size:13.5px;color:var(--ink-2)}
+.switch{display:flex;border:1px solid var(--rule-2);border-radius:999px;overflow:hidden;background:#000}
+.switch button{font-family:var(--sans);font-size:13px;padding:5px 16px;border:0;background:transparent;
+  color:var(--ink-2);cursor:pointer;transition:background .12s,color .12s}
+.switch button:hover{color:var(--ink)}
+.switch button[aria-pressed="true"]{background:var(--ink);color:#000}
+.tele{display:flex;gap:14px;align-items:center;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+.tele .bar-in{width:96px;height:3px;background:var(--rule-2);border-radius:2px;overflow:hidden}
+.tele .bar-in i{display:block;height:100%;background:var(--cyan);width:100%}
+.tele .hit{color:var(--goal)}
+.tele.idle{opacity:.35}
+
+/* stage */
+.stage{position:relative;background:var(--stage);border:1px solid var(--rule);
+  border-radius:0 0 8px 8px;overflow:hidden;aspect-ratio:16/9}
+#view{display:block;width:100%;height:100%}
+.obs-tag{position:absolute;left:12px;top:12px;font-family:var(--mono);font-size:10.5px;
+  color:#7E9099;pointer-events:none}
+#map{position:absolute;right:12px;top:12px;width:150px;height:150px;
+  border:1px solid rgba(255,255,255,.16);border-radius:4px;background:#050B0F;display:none}
+#map.on{display:block}
+.flash{position:absolute;inset:0;background:rgba(240,88,75,.4);opacity:0;pointer-events:none;transition:opacity .18s}
+.flash.on{opacity:1;transition:none}
+
+.veil{position:absolute;inset:0;background:rgba(0,0,0,.86);backdrop-filter:blur(2px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:28px;gap:10px}
+.veil.hide{display:none}
+.veil h3{margin:0;font-size:27px;font-weight:600;letter-spacing:-.025em;color:var(--ink)}
+.veil p{margin:0;font-size:14.5px;color:var(--ink-2);max-width:44ch}
+.veil .keys{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin-top:4px}
+.verdict{font-size:13px;color:var(--ink-2);max-width:46ch;line-height:1.6}
+.verdict.hint{color:var(--amber)}
+.btn{font-family:var(--sans);font-size:15px;font-weight:500;border:0;border-radius:999px;
+  padding:11px 28px;cursor:pointer;background:var(--ink);color:#000;margin-top:10px}
+.btn:hover{background:#fff}
+.veil-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin-top:10px}
+.veil-actions .btn{margin-top:0}
+/* the way on to the results, offered once the run is over */
+.btn.ghost{display:inline-block;background:transparent;color:var(--ink);
+  border:1px solid var(--rule-2);text-decoration:none;line-height:1.2}
+.btn.ghost:hover{background:var(--ink);border-color:var(--ink);color:#000}
+
+/* panel */
+.panel{border:1px solid var(--rule);border-radius:8px;background:var(--surface);padding:18px}
+.field{margin-bottom:20px}
+.switch-full{display:flex;width:100%}
+.switch-full button{flex:1;padding:7px 0;text-align:center}
+input[type=range]{width:100%;accent-color:var(--cyan);background:transparent}
+.rowlab{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;margin-bottom:6px}
+.rowlab b{font-family:var(--mono);font-weight:400;font-size:12.5px;color:var(--ink-2)}
+.deploy{width:100%;font-family:var(--sans);font-size:15px;font-weight:500;background:var(--ink);
+  color:#000;border:0;border-radius:999px;padding:12px;cursor:pointer}
+.deploy:hover{background:#fff}
+
+.touch{display:none;gap:8px;margin-top:10px}
+@media (pointer:coarse){.touch{display:grid;grid-template-columns:repeat(4,1fr)}}
+.touch button{font-family:var(--sans);font-size:13px;padding:14px 0;border:1px solid var(--rule-2);
+  background:var(--surface);color:var(--ink);border-radius:6px}
+
+/* ================= results ================= */
+
+/* two columns: a sticky table of contents, and the results */
+.layout{display:grid;grid-template-columns:206px minmax(0,1fr);gap:40px;align-items:start;padding-bottom:40px}
+@media (max-width:900px){.layout{grid-template-columns:1fr;gap:0}}
+.toc{position:sticky;top:22px}
+@media (max-width:900px){.toc{position:static;margin-bottom:30px}}
+.toc h4{margin:0 0 10px;font-size:11.5px;font-weight:450;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3)}
+.toc a{display:block;font-size:13.5px;line-height:1.35;color:var(--ink-3);text-decoration:none;
+  padding:7px 0 7px 14px;border-left:1px solid var(--rule);transition:color .14s,border-color .14s}
+.toc a:hover{color:var(--ink)}
+.toc a.on{color:var(--cyan);border-left-color:var(--cyan)}
+
+/* sections reuse the demo-head language from the game page */
+.sec{scroll-margin-top:22px;margin-bottom:60px}
+.sec:last-child{margin-bottom:24px}
+.sec-head{border-top:1px solid var(--rule);padding-top:18px;margin-bottom:16px}
+.sec-head h2{font-size:19px;font-weight:500;margin:0 0 5px;letter-spacing:-.012em}
+.sec-head p{margin:0;font-size:15px;color:var(--ink-2);max-width:74ch;line-height:1.5}
+.sec-head p.prompt{margin:14px 0 0;font-family:var(--mono);font-size:13px;letter-spacing:0;
+  color:var(--ink);border-left:2px solid var(--cyan);padding-left:12px;max-width:none}
+
+/* scenario pills — the same pill vocabulary as the masthead links */
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.pills button{font-family:var(--sans);font-size:13px;padding:5px 15px;border:1px solid var(--rule-2);
+  border-radius:999px;background:#000;color:var(--ink-2);cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s}
+.pills button:hover{color:var(--ink)}
+.pills button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#000}
+
+/* the dreamed / realized pair */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:700px){.pair{grid-template-columns:1fr}}
+.vbox{position:relative;background:var(--stage);border:1px solid var(--rule);
+  border-radius:8px;overflow:hidden;aspect-ratio:var(--ar,1.5)}
+.vbox video{display:block;width:100%;height:100%;object-fit:contain;background:var(--stage)}
+.vtag{position:absolute;left:9px;top:9px;font-family:var(--mono);font-size:10.5px;
+  color:#7E9099;background:rgba(0,0,0,.58);padding:3px 8px;border-radius:3px;
+  pointer-events:none;letter-spacing:.02em}
+.vbox.gen{border-color:rgba(76,203,224,.4)}
+.vbox.gen .vtag{color:var(--cyan)}
+
+/* transport */
+.tbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:11px}
+.tbtn{font-family:var(--sans);font-size:13px;padding:5px 16px;border:1px solid var(--rule-2);
+  border-radius:999px;background:#000;color:var(--ink-2);cursor:pointer;transition:color .12s}
+.tbtn:hover{color:var(--ink)}
+.scrub{flex:1;min-width:120px;accent-color:var(--cyan);background:transparent}
+.tnum{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);min-width:76px;text-align:right}
+
+/* grid layout (maze): every pair at once, no picker */
+.gitem{margin-bottom:18px}
+.gitem:last-child{margin-bottom:0}
+.gcap{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin:0 0 7px}
+/* A scenario carrying a note is set apart by colour: amber for the maze size the
+   planner trained on, green for the larger sizes it generalizes to. The tone is
+   carried in two custom properties so the rules below stay tone-agnostic. The
+   border overrides the dreamed/executed cyan on that row, but the corner tags
+   still say which is which, so nothing is lost by recolouring it. */
+.gitem.note-in {--note-ink:var(--amber);--note-line:rgba(229,179,71,.55)}
+.gitem.note-out{--note-ink:var(--ok);   --note-line:rgba(91,201,140,.55)}
+.gitem.noted .vbox,.gitem.noted .vbox.gen{border-color:var(--note-line)}
+.gitem.noted .gcap{color:var(--note-ink)}
+.badge{display:inline-block;margin-left:9px;padding:2px 8px;vertical-align:1px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.02em;color:var(--note-ink);
+  border:1px solid var(--note-line);border-radius:999px}
+
+/* overview, and the manuscript figures that close a results section */
+figure{margin:0}
+.secfig{margin-top:24px}
+figcaption{margin:0 0 12px;font-size:14px;color:var(--ink-2);line-height:1.6;max-width:82ch}
+figcaption b{font-weight:600;color:var(--ink)}
+/* The manuscript figures are authored on black, so they sit straight on the page
+   rather than in a panel — a panel's fill and border would print a visible
+   rectangle around a figure whose own ground already matches the page. */
+.figimg,.figvid{display:block;width:100%;height:auto}
+/* citation + acknowledgment */
+.cite{position:relative;border:1px solid var(--rule);border-radius:8px;background:var(--surface)}
+.cite pre{margin:0;padding:16px 18px;overflow-x:auto;font-family:var(--mono);
+  font-size:12.5px;line-height:1.65;color:var(--ink-2);white-space:pre}
+.copy{position:absolute;top:10px;right:10px;z-index:1}
+.ack{margin:0;font-size:14px;color:var(--ink-2);line-height:1.65;max-width:82ch}
+.noscript{border:1px solid var(--amber);border-radius:8px;padding:14px 16px;color:var(--amber);font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">CueNav</p>
+    <h1>Seeing what matters</h1>
+    <p class="sub">Visual cue guided video planning for generalizable robot navigation.</p>
+    <p class="authors">Hojin Lee<sup>1</sup>, Sizhe Lester Li<sup>2</sup>, Maximilian Hilger<sup>1</sup>, Susie Lu<sup>2</sup>, Achim J. Lilienthal<sup>1</sup>, Vincent Sitzmann<sup>2</sup>, Daniel A. Duecker<sup>1</sup></p>
+    <p class="affil"><sup>1</sup>TUM, MIRMI &nbsp;·&nbsp; <sup>2</sup>MIT CSAIL</p>
+    <nav class="links">
+      <span class="soon">arXiv &mdash; coming soon</span>
+      <span class="soon">Code &mdash; coming soon</span>
+    </nav>
+  </header>
+
+  <section class="demo" id="demo">
+    <div class="demo-head">
+      <h2>How do people drive robots?</h2>
+      <p>Try it yourself.</p>
+      <p class="prompt">&ldquo;Navigate through the maze and reach the red box.&rdquo;</p>
+    </div>
+
+    <div class="rig">
+      <div>
+        <div class="bar">
+          <div class="seg">
+            <span class="seg-lab">Track</span>
+            <span class="switch">
+              <button id="easyBtn" aria-pressed="false">Easy</button>
+              <button id="hardBtn" aria-pressed="true">Hard</button>
+            </span>
+          </div>
+          <div class="seg">
+            <span class="seg-lab">Bird's-eye map</span>
+            <span class="switch">
+              <button id="mapOffBtn" aria-pressed="true">Off</button>
+              <button id="mapOnBtn" aria-pressed="false">On</button>
+            </span>
+          </div>
+          <div class="tele idle" id="telem">
+            <span id="tTime">90.0 s</span>
+            <span class="bar-in"><i id="tBar"></i></span>
+            <span id="tHit">contacts 0/3</span>
+          </div>
+        </div>
+
+        <div class="stage">
+          <canvas id="view" width="960" height="540"></canvas>
+          <div class="obs-tag">observation</div>
+          <canvas id="map" width="300" height="300"></canvas>
+          <div class="flash" id="flash"></div>
+          <div class="veil" id="veil">
+            <h3 id="vTitle">Ready when you are</h3>
+            <p class="verdict" id="vVerdict" style="display:none"></p>
+            <div class="veil-actions">
+              <button class="btn" id="vBtn">Start driving</button>
+              <a class="btn ghost" id="vNext" href="#intro" style="display:none">Watch how a video model drives robots</a>
+              <button class="btn ghost" id="vEasy" style="display:none">Do you want to try easy mode?</button>
+            </div>
+            <p class="keys" id="vKeys">W A S D drive &nbsp;·&nbsp; R F camera pitch &nbsp;·&nbsp; M map &nbsp;·&nbsp; Esc abort</p>
+          </div>
+        </div>
+
+        <div class="touch">
+          <button data-k="a">Left</button><button data-k="w">Ahead</button>
+          <button data-k="d">Right</button><button data-k="s">Back</button>
+        </div>
+
+      </div>
+
+      <aside>
+        <div class="panel">
+          <div class="field">
+            <div class="rowlab"><label>Robot</label></div>
+            <span class="switch switch-full">
+              <button class="robot" data-r="0" aria-pressed="true">Robot 1</button>
+              <button class="robot" data-r="1" aria-pressed="false">Robot 2</button>
+              <button class="robot" data-r="2" aria-pressed="false">Robot 3</button>
+            </span>
+          </div>
+
+          <div class="field">
+            <div class="rowlab"><label for="pitch">Camera pitch</label><b id="pitchVal">0°</b></div>
+            <input type="range" id="pitch" min="-26" max="0" step="1" value="0">
+          </div>
+
+          <button class="deploy" id="deploy">Start driving</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<div class="wrap layout">
+  <aside class="toc">
+    <h4>Contents</h4>
+    <nav id="toc"></nav>
+  </aside>
+
+  <main>
+    <section class="sec" id="intro">
+      <div class="sec-head">
+        <h2>Intro</h2>
+        <p>Just as people rely on visual context when driving, a video planner can benefit from task and embodiment context expressed through visual observations. We illustrate this with a bird&rsquo;s-eye view map serving as global context for navigation, and a partial view of the robot body as embodiment context for precise, embodiment-aware control.</p>
+      </div>
+      <figure>
+        <img class="figimg" src="assets/fig1.webp" width="2200" height="677"
+             alt="Left: a driver's view, with the dashboard map marked as task context and the car's hood as embodiment context. Right: the same two cues in a robot's onboard view — an inset bird's-eye map, and the robot's own body visible at the bottom of frame — shown for a quadruped and for a wheeled robot.">
+      </figure>
+    </section>
+
+    <section class="sec" id="overview">
+      <div class="sec-head">
+        <h2>Overview</h2>
+        <p>Given recent visual observations with embodiment or global visual context and a text prompt, the video planner predicts short-horizon future observations. The resulting flow fields from the predicted video are mapped to continuous robot actions by the IDM, followed by closed-loop replanning from new observations.</p>
+      </div>
+      <figure>
+        <video class="figvid" id="ovVid" muted loop playsinline preload="none"
+               width="1280" height="388" data-src="assets/fig2.mp4"></video>
+      </figure>
+    </section>
+
+    <noscript><p class="noscript">These results are built in the browser — please enable JavaScript to view the videos.</p></noscript>
+    <div id="sections"></div>
+
+    <section class="sec" id="ack">
+      <div class="sec-head"><h2>Acknowledgment</h2></div>
+      <p class="ack">This work was supported by the Bavarian State Ministry of Science and the Arts (StMWK) through the MIT&ndash;TUM Collaboration (grant no.&nbsp;151223031). This work was supported in part by Advanced Micro Devices, Inc. under the AMD University Program&rsquo;s AI &amp; HPC Cluster.</p>
+    </section>
+
+    <section class="sec" id="citation">
+      <div class="sec-head"><h2>BibTeX</h2></div>
+      <div class="cite">
+        <button class="tbtn copy" id="citeCopy" type="button">Copy</button>
+        <pre id="citeText">@article{lee2026cuenav,
+  title   = {Seeing What Matters: Visual Cue Guided Video Planning
+             for Generalizable Robot Navigation},
+  author  = {Lee, Hojin and Li, Sizhe Lester and Hilger, Maximilian and
+             Lu, Susie and Lilienthal, Achim J. and Sitzmann, Vincent and
+             Duecker, Daniel A.},
+  journal = {arXiv preprint arXiv:XXXX.XXXXX},
+  year    = {2026}
+}</pre>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">CueNav · TUM, MIRMI · MIT CSAIL</div>
+</footer>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- constants ---------------- */
+const N=5, CELL=2.4, WALL_H=2.2, RUN_TIME=90, STRIKES=3;
+const EYE=0.95, DECK_DROP=0.72, DECK_NEAR=0.22, DECK_FAR=1.15;
+const CAM_BACK=0.55;   // the camera sits this far behind the chassis centre
+const CAM_R=0.10;      // and needs its own small collision disc, being outside the chassis
+const PITCH_MIN=-26;
+const GAPS=[0.45,0.60,0.80,1.00,1.30,1.60,2.00];
+
+const ROBOTS=[
+  {name:"Robot 1", w:1.30, v:1.70, turn:1.95,
+   fill:"#B9A33A", edge:"#6F6222", top:"#D9C558"},
+  {name:"Robot 2", w:0.80, v:1.85, turn:2.25,
+   fill:"#A8574A", edge:"#5E2D25", top:"#C97466"},
+  {name:"Robot 3", w:0.20, v:2.00, turn:2.65,
+   fill:"#4C555B", edge:"#252B2F", top:"#79848B"}
+];
+
+/* ---------------- rng ---------------- */
+let rs=1;
+function srand(s){ rs=s>>>0; }
+function rnd(){
+  rs|=0; rs=rs+0x6D2B79F5|0;
+  let t=Math.imul(rs^rs>>>15,1|rs);
+  t=t+Math.imul(t^t>>>7,61|t)^t;
+  return ((t^t>>>14)>>>0)/4294967296;
+}
+const pick=a=>a[Math.floor(rnd()*a.length)];
+
+/* ---------------- world ---------------- */
+const WIDEST=1.30;   // = the widest robot; the layout admits any robot, so you can change robot mid-run
+function buildWorld(easy){
+  const robotW=WIDEST, req=robotW+0.22;
+  const NARROW=[0.35,0.50,0.65,0.80,0.95,1.10,1.25,1.45,1.70,2.00];
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;};
+
+  // perfect maze
+  const V=[],H=[];
+  for(let i=0;i<=N;i++){V.push([]);for(let j=0;j<N;j++)V[i].push(true);}
+  for(let i=0;i<N;i++){H.push([]);for(let j=0;j<=N;j++)H[i].push(true);}
+  const seen=Array.from({length:N},()=>new Array(N).fill(false));
+  const st=[[0,0]]; seen[0][0]=true;
+  while(st.length){
+    const [ci,cj]=st[st.length-1], o=[];
+    if(ci>0&&!seen[ci-1][cj])o.push([ci-1,cj,"W"]);
+    if(ci<N-1&&!seen[ci+1][cj])o.push([ci+1,cj,"E"]);
+    if(cj>0&&!seen[ci][cj-1])o.push([ci,cj-1,"S"]);
+    if(cj<N-1&&!seen[ci][cj+1])o.push([ci,cj+1,"N"]);
+    if(!o.length){st.pop();continue;}
+    const [ni,nj,d]=pick(o);
+    if(d==="W")V[ci][cj]=false; if(d==="E")V[ci+1][cj]=false;
+    if(d==="S")H[ci][cj]=false; if(d==="N")H[ci][cj+1]=false;
+    seen[ni][nj]=true; st.push([ni,nj]);
+  }
+  // braid, so wrong turns are real choices rather than dead ends
+  for(let i=1;i<N;i++) for(let j=0;j<N;j++) if(V[i][j]&&rnd()<0.28) V[i][j]=false;
+  for(let i=0;i<N;i++) for(let j=1;j<N;j++) if(H[i][j]&&rnd()<0.28) H[i][j]=false;
+
+  const key=(i,j,d)=>d+":"+i+","+j;
+  const doors=new Map();
+  for(let i=1;i<N;i++) for(let j=0;j<N;j++) if(!V[i][j]) doors.set(key(i,j,"V"),{i,j,vert:true,gap:0,off:0});
+  for(let i=0;i<N;i++) for(let j=1;j<N;j++) if(!H[i][j]) doors.set(key(i,j,"H"),{i,j,vert:false,gap:0,off:0});
+  const doorBetween=(a,b)=> a[0]!==b[0]
+    ? doors.get(key(Math.max(a[0],b[0]),a[1],"V"))
+    : doors.get(key(a[0],Math.max(a[1],b[1]),"H"));
+  const nbrs=(i,j)=>{
+    const o=[];
+    if(i>0&&!V[i][j])o.push([i-1,j]); if(i<N-1&&!V[i+1][j])o.push([i+1,j]);
+    if(j>0&&!H[i][j])o.push([i,j-1]); if(j<N-1&&!H[i][j+1])o.push([i,j+1]);
+    return shuffle(o);
+  };
+
+  // goal = farthest cell; the parent chain back to it is the guaranteed route
+  const dist=Array.from({length:N},()=>new Array(N).fill(-1));
+  const from=Array.from({length:N},()=>new Array(N).fill(null));
+  dist[0][0]=0; let q=[[0,0]], far=[0,0];
+  while(q.length){
+    const nq=[];
+    for(const [i,j] of q) for(const [a,b] of nbrs(i,j)) if(dist[a][b]<0){
+      dist[a][b]=dist[i][j]+1; from[a][b]=[i,j];
+      if(dist[a][b]>dist[far[0]][far[1]])far=[a,b];
+      nq.push([a,b]);
+    }
+    q=nq;
+  }
+  const goal=far;
+  const onRoute=Array.from({length:N},()=>new Array(N).fill(false));
+  const routeDoors=new Set();
+  {
+    let c=goal; onRoute[c[0]][c[1]]=true;
+    while(from[c[0]][c[1]]){
+      const p=from[c[0]][c[1]], d=doorBetween(c,p);
+      if(d) routeDoors.add(d);
+      onRoute[p[0]][p[1]]=true; c=p;
+    }
+  }
+
+  // widths: on the easy track every corridor is the full cell; on the hard track the
+  // route admits this robot and everything else is drawn independently of it
+  for(const d of doors.values())
+    d.gap = easy ? CELL
+          : routeDoors.has(d) ? Math.min(2.15, req+pick([0.12,0.30,0.55])) : pick(NARROW);
+
+  // narrow channels through straight-through cells
+  const chan=Array.from({length:N},()=>new Array(N).fill(0));
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+    if((i===0&&j===0)||(i===goal[0]&&j===goal[1])) continue;
+    const nb=nbrs(i,j); if(nb.length!==2) continue;
+    if(!(nb[0][0]===nb[1][0]||nb[0][1]===nb[1][1])) continue;
+    if(easy) continue;
+    if(onRoute[i][j]){ if(rnd()<0.45) chan[i][j]=req+pick([0.10,0.26]); }
+    else if(rnd()<0.6) chan[i][j]=pick([0.50,0.70,0.90,1.15,1.45]);
+  }
+
+  // the last opening is scaled to the robot, so precision is comparable across all three
+  const gate=doorBetween(goal,from[goal[0]][goal[1]]||[0,0]);
+  if(gate&&!easy) gate.gap=robotW+0.30;
+
+  // lateral offsets, so an opening has to be aimed at and not merely fitted through
+  for(const d of doors.values()){
+    const slack=(CELL-d.gap)/2;
+    const cA=d.vert?chan[d.i-1][d.j]:chan[d.i][d.j-1], cB=chan[d.i][d.j];
+    if(!easy&&slack>0.35&&!cA&&!cB) d.off=(rnd()*2-1)*Math.min(slack-0.30,0.45);
+  }
+
+  const dg=Array.from({length:N},()=>new Array(N).fill(-1));
+  dg[goal[0]][goal[1]]=0; q=[goal];
+  while(q.length){
+    const nq=[];
+    for(const [i,j] of q) for(const [a,b] of nbrs(i,j)) if(dg[a][b]<0){dg[a][b]=dg[i][j]+1;nq.push([a,b]);}
+    q=nq;
+  }
+
+  const segs=[];
+  const add=(x1,y1,x2,y2,soft,tint)=>segs.push({x1,y1,x2,y2,soft:!!soft,tint:!!tint});
+  for(let i=0;i<=N;i++) for(let j=0;j<N;j++) if(V[i][j]) add(i*CELL,j*CELL,i*CELL,(j+1)*CELL,easy,false);
+  for(let i=0;i<N;i++) for(let j=0;j<=N;j++) if(H[i][j]) add(i*CELL,j*CELL,(i+1)*CELL,j*CELL,easy,false);
+  for(const d of doors.values()){
+    if(d.gap>=CELL-1e-6) continue;
+    if(d.vert){
+      const x=d.i*CELL, y0=d.j*CELL, c=y0+CELL/2+d.off;
+      add(x,y0,x,c-d.gap/2,true,true); add(x,c+d.gap/2,x,y0+CELL,true,true);
+    }else{
+      const y=d.j*CELL, x0=d.i*CELL, c=x0+CELL/2+d.off;
+      add(x0,y,c-d.gap/2,y,true,true); add(c+d.gap/2,y,x0+CELL,y,true,true);
+    }
+  }
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(chan[i][j]){
+    const w=chan[i][j], nb=nbrs(i,j), horiz=nb[0][1]===nb[1][1];
+    const cx=(i+0.5)*CELL, cy=(j+0.5)*CELL;
+    if(horiz){ add(i*CELL,cy-w/2,(i+1)*CELL,cy-w/2,true,true); add(i*CELL,cy+w/2,(i+1)*CELL,cy+w/2,true,true); }
+    else     { add(cx-w/2,j*CELL,cx-w/2,(j+1)*CELL,true,true); add(cx+w/2,j*CELL,cx+w/2,(j+1)*CELL,true,true); }
+  }
+
+  return {segs,goal,dg,startDist:dg[0][0],
+          goalPos:{x:(goal[0]+0.5)*CELL,y:(goal[1]+0.5)*CELL},
+          headStart:V[1][0]?Math.PI/2:0,doors,chan,V,H};
+}
+
+/* ---------------- state ---------------- */
+const view=document.getElementById("view"), ctx=view.getContext("2d");
+const mapC=document.getElementById("map"), mctx=mapC.getContext("2d");
+const W=view.width, Hh=view.height;
+const HFOV=85*Math.PI/180, FOCAL=(W/2)/Math.tan(HFOV/2);
+const COLW=2, NR=Math.floor(W/COLW), zbuf=new Float32Array(NR);
+
+const S={phase:"idle",ri:0,pitch:0,easy:false,mapOn:false,
+         world:null,px:0,py:0,hd:0,t:0,best:0,hits:0,stall:0,
+         keys:Object.create(null),last:0,raf:0};
+const R=()=>ROBOTS[S.ri];
+const halfW=()=>R().w/2;
+
+/* ---------------- geometry ---------------- */
+const camX=()=>S.px-Math.cos(S.hd)*CAM_BACK;
+const camY=()=>S.py-Math.sin(S.hd)*CAM_BACK;
+// chassis disc plus camera disc: either one touching counts
+function hitAt(x,y,hd,rad,segs){
+  return touching(x,y,rad,segs)
+      || touching(x-Math.cos(hd)*CAM_BACK, y-Math.sin(hd)*CAM_BACK, CAM_R, segs);
+}
+function cast(ox,oy,dx,dy,segs){
+  let best=1e9,hit=null;
+  for(let k=0;k<segs.length;k++){
+    const s=segs[k], ex=s.x2-s.x1, ey=s.y2-s.y1;
+    const den=dx*ey-dy*ex;
+    if(den>-1e-9&&den<1e-9) continue;
+    const fx=s.x1-ox, fy=s.y1-oy;
+    const t=(fx*ey-fy*ex)/den;
+    if(t<=0.01||t>=best) continue;
+    const u=(fx*dy-dx*fy)/den;
+    if(u<0||u>1) continue;
+    best=t; hit=s;
+  }
+  return {t:best,seg:hit};
+}
+function touching(x,y,r,segs){
+  for(let k=0;k<segs.length;k++){
+    const s=segs[k], ex=s.x2-s.x1, ey=s.y2-s.y1, L2=ex*ex+ey*ey;
+    if(L2<1e-9) continue;
+    let u=((x-s.x1)*ex+(y-s.y1)*ey)/L2; u=u<0?0:(u>1?1:u);
+    const dx=x-(s.x1+u*ex), dy=y-(s.y1+u*ey);
+    if(dx*dx+dy*dy<r*r) return s;
+  }
+  return null;
+}
+
+/* ---------------- render ---------------- */
+function drawScene(){
+  const w=S.world, horizon=Hh/2+FOCAL*Math.tan(S.pitch*Math.PI/180);
+  const sky=ctx.createLinearGradient(0,0,0,Math.max(horizon,1));
+  sky.addColorStop(0,"#152229"); sky.addColorStop(1,"#263A44");
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,Math.max(horizon,0));
+  const fl=ctx.createLinearGradient(0,horizon,0,Hh);
+  fl.addColorStop(0,"#1E272C"); fl.addColorStop(1,"#0C1215");
+  ctx.fillStyle=fl; ctx.fillRect(0,Math.max(horizon,0),W,Hh-Math.max(horizon,0));
+
+  ctx.strokeStyle="rgba(150,180,192,.16)"; ctx.lineWidth=1;
+  for(let d=1;d<=14;d++){
+    const y=horizon+FOCAL*EYE/d;
+    if(y<horizon||y>Hh) continue;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+
+  const ch=Math.cos(S.hd), sh=Math.sin(S.hd), ex=camX(), ey=camY();
+  for(let k=0;k<NR;k++){
+    const cx=(2*(k+0.5)/NR-1)*Math.tan(HFOV/2);
+    const {t,seg}=cast(ex,ey,ch+cx*sh,sh-cx*ch,w.segs);
+    zbuf[k]=t;
+    if(!seg) continue;
+    const top=horizon-FOCAL*(WALL_H-EYE)/t, bot=horizon+FOCAL*EYE/t;
+    const vert=Math.abs(seg.x2-seg.x1)<1e-6;
+    let sd=Math.max(.14,1-t/13); if(vert) sd*=.82;
+    ctx.fillStyle = seg.tint
+      ? "rgb("+Math.round(198*sd+18)+","+Math.round(124*sd+16)+","+Math.round(48*sd+14)+")"
+      : "rgb("+Math.round(150*sd+16)+","+Math.round(164*sd+20)+","+Math.round(168*sd+22)+")";
+    ctx.fillRect(k*COLW,top,COLW+1,bot-top);
+  }
+  drawGoal(horizon); drawBody(horizon);
+}
+
+function drawGoal(horizon){
+  const g=S.world.goalPos, dx=g.x-camX(), dy=g.y-camY();
+  const ch=Math.cos(S.hd), sh=Math.sin(S.hd);
+  const fwd=dx*ch+dy*sh; if(fwd<0.25) return;
+  const lat=dx*sh-dy*ch;
+  const cx=W/2+FOCAL*lat/fwd, size=FOCAL*0.46/fwd;
+  const bot=horizon+FOCAL*EYE/fwd, top=bot-size;
+  for(let x=Math.floor(cx-size/2);x<cx+size/2;x++){
+    if(x<0||x>=W) continue;
+    if(zbuf[Math.floor(x/COLW)]<fwd) continue;
+    ctx.fillStyle="#E8493C"; ctx.fillRect(x,top,1,bot-top);
+    ctx.fillStyle="rgba(255,255,255,.14)"; ctx.fillRect(x,top,1,Math.max(2,size*.12));
+  }
+}
+
+function drawBody(horizon){
+  const r=R(), hw=r.w/2;
+  const P=(f,l)=>({x:W/2+FOCAL*l/f, y:horizon+FOCAL*DECK_DROP/f});
+  const fl=P(DECK_FAR,-hw), fr=P(DECK_FAR,hw), nl=P(DECK_NEAR,-hw), nr=P(DECK_NEAR,hw);
+  if(fl.y>Hh+40) return;
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(fl.x,fl.y); ctx.lineTo(fr.x,fr.y); ctx.lineTo(nr.x,nr.y); ctx.lineTo(nl.x,nl.y); ctx.closePath();
+  const g=ctx.createLinearGradient(0,fl.y,0,Math.min(nl.y,Hh));
+  g.addColorStop(0,r.top); g.addColorStop(1,r.fill);
+  ctx.fillStyle=g; ctx.fill();
+  ctx.strokeStyle=r.edge; ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(fl.x,fl.y); ctx.lineTo(nl.x,nl.y); ctx.moveTo(fr.x,fr.y); ctx.lineTo(nr.x,nr.y);
+  ctx.strokeStyle="rgba(0,0,0,.45)"; ctx.lineWidth=4; ctx.stroke();
+  ctx.restore();
+}
+
+function drawMap(){
+  const w=S.world, P=mapC.width, pad=15, sc=(P-2*pad)/(N*CELL);
+  const X=x=>pad+x*sc, Y=y=>P-pad-y*sc;
+  mctx.fillStyle="#050B0F"; mctx.fillRect(0,0,P,P);
+  mctx.lineWidth=4; mctx.lineCap="round"; mctx.strokeStyle="#4CCBE0";
+  for(const s of w.segs){ mctx.beginPath(); mctx.moveTo(X(s.x1),Y(s.y1)); mctx.lineTo(X(s.x2),Y(s.y2)); mctx.stroke(); }
+  mctx.fillStyle="#F0584B"; mctx.fillRect(X(w.goalPos.x)-7,Y(w.goalPos.y)-7,14,14);
+  mctx.save(); mctx.translate(X(S.px),Y(S.py)); mctx.rotate(-S.hd);
+  mctx.fillStyle="#F2E6A8"; mctx.beginPath(); mctx.moveTo(11,0); mctx.lineTo(-7,7); mctx.lineTo(-7,-7); mctx.closePath(); mctx.fill();
+  mctx.restore();
+}
+
+/* ---------------- loop ---------------- */
+const cellOf=(x,y)=>[Math.max(0,Math.min(N-1,Math.floor(x/CELL))),Math.max(0,Math.min(N-1,Math.floor(y/CELL)))];
+
+function step(dt){
+  const r=R(), k=S.keys, w=S.world;
+  if(k.r) setPitch(S.pitch-22*dt);
+  if(k.f) setPitch(S.pitch+22*dt);
+
+  if(S.stall>0){ S.stall-=dt; }
+  else{
+    let turn=0,fwd=0;
+    if(k.a||k.ArrowLeft)turn+=1;
+    if(k.d||k.ArrowRight)turn-=1;
+    if(k.w||k.ArrowUp)fwd+=1;
+    if(k.s||k.ArrowDown)fwd-=.65;
+    const rad=halfW()+0.03, hd0=S.hd;
+    S.hd+=turn*r.turn*dt;
+    if(hitAt(S.px,S.py,S.hd,rad,w.segs)) S.hd=hd0;   // the rear camera swings on a turn
+    const ch=Math.cos(S.hd), sh=Math.sin(S.hd);
+    const nx=S.px+ch*fwd*r.v*dt, ny=S.py+sh*fwd*r.v*dt;
+    let soft=null;
+    const hx=hitAt(nx,S.py,S.hd,rad,w.segs); if(!hx)S.px=nx; else if(hx.soft)soft=hx;
+    const hy=hitAt(S.px,ny,S.hd,rad,w.segs); if(!hy)S.py=ny; else if(hy.soft)soft=hy;
+    if(soft){
+      S.hits++; S.stall=1.1;
+      S.px-=ch*0.16; S.py-=sh*0.16;
+      flash();
+      if(S.hits>=STRIKES) return finish("immobilised");
+    }
+  }
+
+  const [ci,cj]=cellOf(S.px,S.py);
+  const prog=w.startDist>0?1-w.dg[ci][cj]/w.startDist:1;
+  if(prog>S.best)S.best=prog;
+  if(Math.hypot(w.goalPos.x-S.px,w.goalPos.y-S.py)<0.62){ S.best=1; return finish("reached"); }
+  S.t+=dt;
+  if(S.t>=RUN_TIME) return finish("out of time");
+  return true;
+}
+
+function flash(){
+  const f=document.getElementById("flash");
+  f.classList.add("on"); setTimeout(()=>f.classList.remove("on"),60);
+}
+
+function frame(now){
+  if(S.phase!=="run") return;
+  if(!onScreen){ S.raf=0; return; }   // parked while scrolled away; resumed below
+  const dt=Math.min(.05,(now-S.last)/1000); S.last=now;
+  if(step(dt)===true){
+    drawScene(); if(S.mapOn) drawMap();
+    document.getElementById("tTime").textContent=(RUN_TIME-S.t).toFixed(1)+" s";
+    document.getElementById("tBar").style.width=(100*(1-S.t/RUN_TIME))+"%";
+    const th=document.getElementById("tHit");
+    th.textContent="contacts "+S.hits+"/"+STRIKES;
+    th.className=S.hits?"hit":"";
+    S.raf=requestAnimationFrame(frame);
+  }
+}
+
+/* ---------------- run control ---------------- */
+function restart(){
+  if(S.phase==="run"){ cancelAnimationFrame(S.raf); S.phase="idle"; }
+  startRun();
+}
+
+function startRun(){
+  srand((Date.now()^(Math.random()*1e9))>>>0);
+  S.world=buildWorld(S.easy);
+  S.px=CELL*.5; S.py=CELL*.5; S.hd=S.world.headStart;
+  S.t=0; S.best=0; S.hits=0; S.stall=0; S.keys=Object.create(null);
+  S.phase="run"; S.last=performance.now();
+  document.getElementById("veil").classList.add("hide");
+  document.getElementById("telem").classList.remove("idle");
+  syncMap(); drawScene(); if(S.mapOn) drawMap();
+  S.raf=requestAnimationFrame(frame);
+}
+
+function finish(outcome){
+  S.phase="over"; cancelAnimationFrame(S.raf);
+  document.getElementById("telem").classList.add("idle");
+  const vis=bodyVisible();
+  document.getElementById("vTitle").textContent=
+    {reached:"Goal reached",immobilised:"Immobilised",'out of time':"Out of time"}[outcome];
+  const vv=document.getElementById("vVerdict");
+  vv.textContent = outcome==="reached"
+    ? "Now let's see how a video model drives robots \u2014 unless you'd like another go."
+    : verdict(outcome,vis);
+  vv.classList.toggle("hint",outcome!=="reached");
+  document.getElementById("vNext").style.display = outcome==="reached" ? "" : "none";
+  // offering the easy track only makes sense to someone who was on the hard one
+  document.getElementById("vEasy").style.display = (outcome==="immobilised" && !S.easy) ? "" : "none";
+  vv.style.display=vv.textContent?"":"none";
+  document.getElementById("vBtn").textContent="Run it again";
+  document.getElementById("vKeys").textContent="Change the setup, then run it again.";
+  document.getElementById("veil").classList.remove("hide");
+  return false;
+}
+
+function verdict(outcome,vis){
+  if(outcome==="reached") return "";
+
+  // name only the cue that is actually switched off
+  const missing=[];
+  if(!S.mapOn) missing.push("turn the bird's-eye map on to see where the goal is");
+  if(!vis) missing.push("pitch the camera down until the chassis is in frame, so you can see how much room the robot needs");
+
+  if(missing.length===2)
+    return "Hint: turn the bird's-eye map on, and pitch the camera down until the chassis is in frame.";
+  if(missing.length===1)
+    return "Hint: "+missing[0]+".";
+
+  // both cues were on, so there is no hint left to give: the title stands alone
+  return outcome==="immobilised" ? "Try again \u2014 you can also change the robot." : "";
+}
+
+function bodyVisible(){
+  return (Hh/2+FOCAL*Math.tan(S.pitch*Math.PI/180)+FOCAL*DECK_DROP/DECK_FAR)<Hh;
+}
+
+/* ---------------- ui ---------------- */
+function setPitch(d){
+  S.pitch=Math.max(PITCH_MIN,Math.min(0,d));
+  document.getElementById("pitch").value=Math.round(S.pitch);
+  document.getElementById("pitchVal").textContent=Math.round(S.pitch)+"°";
+  if(S.phase!=="run"&&S.world) drawScene();
+}
+function syncMap(){
+  mapC.classList.toggle("on",S.mapOn);
+  document.getElementById("mapOnBtn").setAttribute("aria-pressed",String(S.mapOn));
+  document.getElementById("mapOffBtn").setAttribute("aria-pressed",String(!S.mapOn));
+  if(S.mapOn&&S.world) drawMap();
+}
+function setMap(on){ S.mapOn=on; syncMap(); }
+function setMode(easy,silent){
+  S.easy=easy;
+  document.getElementById("easyBtn").setAttribute("aria-pressed",String(easy));
+  document.getElementById("hardBtn").setAttribute("aria-pressed",String(!easy));
+  markRobot(S.ri);
+  if(silent){
+    S.world=buildWorld(S.easy); S.hd=S.world.headStart;
+    drawScene(); if(S.mapOn) drawMap();
+    return;
+  }
+  restart();
+}
+// a wider chassis may not fit where the previous one stood, so ease it to the nearest clear spot
+function fitPose(rad){
+  if(!hitAt(S.px,S.py,S.hd,rad,S.world.segs)) return true;
+  for(let r=0.12;r<=0.9;r+=0.12) for(let k=0;k<16;k++){
+    const a=k*Math.PI/8, x=S.px+Math.cos(a)*r, y=S.py+Math.sin(a)*r;
+    if(x<0.2||y<0.2||x>N*CELL-0.2||y>N*CELL-0.2) continue;
+    if(!hitAt(x,y,S.hd,rad,S.world.segs)){ S.px=x; S.py=y; return true; }
+  }
+  return false;
+}
+
+function markRobot(i){
+  document.querySelectorAll(".robot").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.r===i)));
+}
+
+function pickRobot(i){
+  const prev=S.ri;
+  S.ri=i; markRobot(i);
+  if(S.phase==="run"){
+    if(!fitPose(halfW()+0.03)){ S.ri=prev; markRobot(prev); return; }
+    S.stall=Math.max(S.stall,0.25);
+  }else if(!S.world){
+    S.world=buildWorld(S.easy); S.hd=S.world.headStart;
+  }
+  setPitch(S.pitch);
+}
+
+document.querySelectorAll(".robot").forEach(b=>b.onclick=()=>pickRobot(+b.dataset.r));
+document.getElementById("pitch").oninput=e=>setPitch(+e.target.value);
+document.getElementById("easyBtn").onclick=()=>setMode(true,false);
+document.getElementById("hardBtn").onclick=()=>setMode(false,false);
+document.getElementById("mapOnBtn").onclick=()=>setMap(true);
+document.getElementById("mapOffBtn").onclick=()=>setMap(false);
+document.getElementById("deploy").onclick=restart;
+document.getElementById("vBtn").onclick=restart;
+document.getElementById("vEasy").onclick=()=>setMode(true,false);
+
+const HELD={w:1,a:1,s:1,d:1,r:1,f:1,ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1};
+addEventListener("keydown",e=>{
+  const k=e.key.length===1?e.key.toLowerCase():e.key;
+  if(k==="m"&&S.phase==="run"){ setMap(!S.mapOn); return; }
+  if(k==="Escape"&&S.phase==="run"){ finish("out of time"); return; }
+  if(HELD[k]){ S.keys[k]=true; if(S.phase==="run")e.preventDefault(); }
+});
+addEventListener("keyup",e=>{
+  const k=e.key.length===1?e.key.toLowerCase():e.key;
+  if(HELD[k]) S.keys[k]=false;
+});
+document.querySelectorAll(".touch button").forEach(b=>{
+  const k=b.dataset.k;
+  const on=e=>{e.preventDefault();S.keys[k]=true;}, off=e=>{e.preventDefault();S.keys[k]=false;};
+  b.addEventListener("touchstart",on); b.addEventListener("touchend",off);
+  b.addEventListener("mousedown",on); b.addEventListener("mouseup",off); b.addEventListener("mouseleave",off);
+});
+
+/* The raycaster is cheap, but there is no reason to burn a frame budget on a
+   canvas nobody is looking at — and the run clock should not tick while the
+   page is scrolled elsewhere. Parking it also stops WASD being swallowed. */
+let onScreen=true;
+if("IntersectionObserver" in window){
+  new IntersectionObserver(es=>{
+    onScreen=es[0].isIntersecting;
+    if(onScreen && S.phase==="run" && !S.raf){
+      S.last=performance.now();          // no giant dt on the resuming frame
+      S.raf=requestAnimationFrame(frame);
+    }
+  },{threshold:0}).observe(document.getElementById("demo"));
+}
+
+srand((Date.now())>>>0);
+S.px=CELL*.5; S.py=CELL*.5;
+setMode(false,true); syncMap();
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+
+const M = [{"id": "maze", "label": "Maze Navigation", "short": "Maze Navigation", "description": "The video planner generalizes to high-level navigation instructions, enabling zero-shot navigation in larger unseen mazes after training only on small maps.", "layout": "grid", "scenarios": [{"name": "3×3", "prompt": "Navigate through the maze to reach the red goal.", "dream": "clips/maze_navigation__3_3__dream.mp4", "realized": "clips/maze_navigation__3_3__realized.mp4", "note": "in-distribution", "tone": "in"}, {"name": "4×4", "prompt": "Navigate through the maze to reach the red goal.", "dream": "clips/maze_navigation__4_4__dream.mp4", "realized": "clips/maze_navigation__4_4__realized.mp4", "note": "out-of-distribution", "tone": "out"}, {"name": "5×5", "prompt": "Navigate through the maze to reach the red goal.", "dream": "clips/maze_navigation__5_5__dream.mp4", "realized": "clips/maze_navigation__5_5__realized.mp4", "note": "out-of-distribution", "tone": "out"}, {"name": "6×6", "prompt": "Navigate through the maze to reach the red goal.", "dream": "clips/maze_navigation__6_6__dream.mp4", "realized": "clips/maze_navigation__6_6__realized.mp4", "note": "out-of-distribution", "tone": "out"}], "figures": [{"src": "assets/fig8.webp", "width": 2200, "height": 846, "alt": "Rollouts in mazes of 3x3 to 6x6. Top row: the planner is given a bird's-eye map alongside the first-person view, and reaches the goal by a direct route at every size. Bottom row: given only the first-person view, the same trajectories loop and backtrack.", "caption": "Top: with a bird’s-eye map in the input context, the planner follows a direct route to the goal at every maze size. Bottom: given only the first-person view, the same planner loops and backtracks.", "lead": "Ablation on the global context cue."}]}, {"id": "semantic", "label": "Semantic Navigation", "short": "Semantic Navigation", "description": "Zero-shot semantic conditioned visual planning. Different text prompts lead CueNav to generate and execute different navigation behaviors.", "layout": "picker", "scenarios": [{"name": "Navigate to tree", "prompt": "Navigate to tree", "dream": "clips/semantic_navigation__navigate_to_tree__dream.mp4", "realized": "clips/semantic_navigation__navigate_to_tree__realized.mp4"}, {"name": "Navigate to bag", "prompt": "Navigate to bag", "dream": "clips/semantic_navigation__navigate_to_bag__dream.mp4", "realized": "clips/semantic_navigation__navigate_to_bag__realized.mp4"}, {"name": "Navigate to boat", "prompt": "Navigate to red boat", "dream": "clips/semantic_navigation__navigate_to_boat__dream.mp4", "realized": "clips/semantic_navigation__navigate_to_boat__realized.mp4"}, {"name": "Path following (Husky)", "prompt": "Follow gravel path", "dream": "clips/semantic_navigation__path_following_husky__dream.mp4", "realized": "clips/semantic_navigation__path_following_husky__realized.mp4"}, {"name": "Path following (Go2)", "prompt": "Follow gravel path", "dream": "clips/semantic_navigation__path_following_go2__dream.mp4", "realized": "clips/semantic_navigation__path_following_go2__realized.mp4"}]}, {"id": "precise", "showPrompt": false, "label": "Precise Navigation", "short": "Precise Navigation", "description": "Zero-shot embodiment-aware precise navigation. By grounding dreamed visual motion into continuous control, CueNav can navigate narrow passages and follow tight tracks with high precision.", "layout": "picker", "scenarios": [{"name": "1 m wide track", "dream": "clips/precise_navigation__1_m_wide_track__dream.mp4", "realized": "clips/precise_navigation__1_m_wide_track__realized.mp4"}, {"name": "1.5 m wide track", "dream": "clips/precise_navigation__1_5_m_wide_track__dream.mp4", "realized": "clips/precise_navigation__1_5_m_wide_track__realized.mp4"}]}, {"id": "embodiment", "showPrompt": false, "label": "Multi-Embodiment", "short": "Multi-Embodiment", "description": "One video planner, multiple embodiments. CueNav reuses the same video planner across different robot platforms, while only the inverse dynamics model is adapted to each embodiment.", "layout": "picker", "scenarios": [{"name": "Go2 scene 1", "dream": "clips/cross-embodiment__go2_scene_3__dream.mp4", "realized": "clips/cross-embodiment__go2_scene_3__realized.mp4"}, {"name": "Go2 scene 2", "dream": "clips/cross-embodiment__go2_scene_2__dream.mp4", "realized": "clips/cross-embodiment__go2_scene_2__realized.mp4"}, {"name": "Go2 scene 3", "dream": "clips/cross-embodiment__go2_scene_1__dream.mp4", "realized": "clips/cross-embodiment__go2_scene_1__realized.mp4"}]}, {"id": "longhorizon", "showPrompt": false, "label": "Longer-Horizon Autonomous Navigation", "short": "Longer-Horizon", "description": "Robust long-horizon autonomy. CueNav sustains navigation over substantially longer trajectories before requiring intervention, demonstrating improved reliability under repeated closed-loop execution.", "layout": "picker", "scenarios": [{"name": "Scene 1", "dream": "clips/exploration__scene_1__dream.mp4", "realized": "clips/exploration__scene_1__realized.mp4"}, {"name": "Scene 2", "dream": "clips/exploration__scene_2__dream.mp4", "realized": "clips/exploration__scene_2__realized.mp4"}, {"name": "Scene 3", "dream": "clips/exploration__scene_3__dream.mp4", "realized": "clips/exploration__scene_3__realized.mp4"}]}];
+
+/* ---------------------------------------------------------------- playback
+   One shared rAF drives every visible pair, rather than one loop per video:
+   the realized track is nudged back onto the dreamed track whenever they
+   drift, so the two halves stay comparable frame for frame. */
+const PAIRS=[]; let syncRaf=0;
+function syncLoop(){
+  let live=false;
+  for(const p of PAIRS){
+    if(p.mounted && !p.vD.paused && !p.vD.ended){
+      live=true;
+      if(!p.vD.seeking && Math.abs(p.vR.currentTime-p.vD.currentTime)>0.08)
+        p.vR.currentTime=p.vD.currentTime;
+      if(p.onTick) p.onTick();
+    }
+  }
+  syncRaf = live ? requestAnimationFrame(syncLoop) : 0;
+}
+function kick(){ if(!syncRaf) syncRaf=requestAnimationFrame(syncLoop); }
+
+/* Nothing is fetched until it scrolls into view: every <video> carries a
+   data-src and stays empty until the observer mounts it. That keeps the
+   first load to the page itself rather than 52 MB of clips. */
+function mount(v){
+  if(v.dataset.src && !v.src){ v.src=v.dataset.src; v.load(); }
+}
+const vio = new IntersectionObserver(es=>{
+  for(const e of es){
+    const v=e.target;
+    if(e.isIntersecting){ mount(v); if(v.dataset.wants!=="0") v.play().catch(()=>{}); kick(); }
+    else v.pause();
+  }
+},{threshold:0.15});
+
+function pairOf(vD,vR){
+  const p={vD,vR,mounted:false,onTick:null};
+  PAIRS.push(p);
+  vD.addEventListener("play",()=>{p.mounted=true;kick();});
+  // the pair loops as a unit, so the realized half never runs on alone
+  vD.addEventListener("ended",()=>{
+    vD.currentTime=0; vR.currentTime=0;
+    vD.play().catch(()=>{}); vR.play().catch(()=>{}); kick();
+  });
+  const mirror=()=>{ if(!vD.paused){ vR.play().catch(()=>{}); } else vR.pause(); };
+  vD.addEventListener("play",mirror); vD.addEventListener("pause",mirror);
+  return p;
+}
+
+const el=(t,c,txt)=>{const n=document.createElement(t); if(c)n.className=c;
+  if(txt!==undefined)n.textContent=txt; return n;};
+
+function vbox(kind){
+  const box=el("div","vbox"+(kind==="gen"?" gen":""));
+  const v=document.createElement("video");
+  v.muted=true; v.playsInline=true; v.preload="none"; v.setAttribute("playsinline","");
+  box.appendChild(v);
+  box.appendChild(el("div","vtag", kind==="gen" ? "dreamed by the planner" : "executed by the robot"));
+  return {box,v};
+}
+
+/* Figures belonging to a whole section, shown after its clips. Lazy, since they
+   sit well below the fold, and sized up front so nothing shifts as they load. */
+function addFigures(sec, exp){
+  for(const f of exp.figures||[]){
+    const fig=el("figure","secfig");
+    const img=document.createElement("img");
+    img.className="figimg"; img.src=f.src; img.alt=f.alt||"";
+    if(f.width) img.width=f.width;
+    if(f.height) img.height=f.height;
+    img.loading="lazy"; img.decoding="async";
+    if(f.lead||f.caption){
+      const cap=el("figcaption");
+      if(f.lead) cap.appendChild(el("b",null,f.lead));
+      if(f.caption) cap.appendChild(el("span",null,(f.lead?" ":"")+f.caption));
+      fig.appendChild(cap);
+    }
+    fig.appendChild(img);
+    sec.appendChild(fig);
+  }
+}
+
+function head(sec, exp){
+  const h=el("div","sec-head");
+  h.appendChild(el("h2",null,exp.label));
+  if(exp.description) h.appendChild(el("p",null,exp.description));
+  const pr = exp.showPrompt===false ? null : el("p","prompt");
+  if(pr) h.appendChild(pr);
+  sec.appendChild(h);
+  return pr;
+}
+
+const fmt=t=>{ if(!isFinite(t))return "0:00"; const m=Math.floor(t/60),s=Math.floor(t%60);
+  return m+":"+String(s).padStart(2,"0"); };
+
+/* ------------------------------------------------------- grid (maze) ----- */
+function buildGrid(exp){
+  const sec=el("section","sec"); sec.id=exp.id;
+  sec.style.setProperty("--ar","1.733");            // the maze clips are 832x480
+  const pr=head(sec,exp);
+  if(pr) pr.textContent="“"+(exp.scenarios[0].prompt||"")+"”";
+  for(const s of exp.scenarios){
+    const item=el("div","gitem"+(s.note?" noted note-"+(s.tone||"in"):""));
+    const cap=el("p","gcap",s.name);
+    if(s.note) cap.appendChild(el("span","badge",s.note));
+    item.appendChild(cap);
+    const row=el("div","pair");
+    const a=vbox("gen"), b=vbox("real");
+    a.v.dataset.src=s.dream; b.v.dataset.src=s.realized;
+    row.appendChild(a.box); row.appendChild(b.box);
+    item.appendChild(row); sec.appendChild(item);
+    pairOf(a.v,b.v);
+    vio.observe(a.v); vio.observe(b.v);
+  }
+  addFigures(sec,exp);
+  return sec;
+}
+
+/* ------------------------------------------------- picker + transport ---- */
+function buildPicker(exp){
+  const sec=el("section","sec"); sec.id=exp.id;
+  const pr=head(sec,exp);
+
+  const pills=el("div","pills");
+  sec.appendChild(pills);
+
+  const row=el("div","pair");
+  const a=vbox("gen"), b=vbox("real");
+  row.appendChild(a.box); row.appendChild(b.box);
+  sec.appendChild(row);
+  const vD=a.v, vR=b.v;
+  const p=pairOf(vD,vR);
+
+  const bar=el("div","tbar");
+  const playBtn=el("button","tbtn","Pause");
+  const scrub=document.createElement("input");
+  scrub.type="range"; scrub.min=0; scrub.max=1000; scrub.value=0;
+  scrub.className="scrub"; scrub.setAttribute("aria-label","Seek");
+  const num=el("div","tnum","0:00 / 0:00");
+  const SPEEDS=[1,0.5,0.25,2]; let si=0;
+  const spd=el("button","tbtn","1×");
+  bar.append(playBtn,scrub,num,spd);
+  sec.appendChild(bar);
+
+  p.onTick=()=>{
+    const d=vD.duration||0;
+    if(d) scrub.value=Math.round(1000*vD.currentTime/d);
+    num.textContent=fmt(vD.currentTime)+" / "+fmt(d);
+  };
+  scrub.addEventListener("input",()=>{
+    const d=vD.duration||0, t=d*(+scrub.value/1000);
+    vD.currentTime=t; vR.currentTime=t; num.textContent=fmt(t)+" / "+fmt(d);
+  });
+  playBtn.onclick=()=>{
+    if(vD.paused){ vD.dataset.wants="1"; vD.play().catch(()=>{}); kick(); }
+    else { vD.dataset.wants="0"; vD.pause(); }
+  };
+  const label=()=>{ playBtn.textContent = vD.paused ? "Play" : "Pause"; };
+  vD.addEventListener("play",label); vD.addEventListener("pause",label);
+  vD.addEventListener("loadedmetadata",()=>{ p.onTick(); });
+  spd.onclick=()=>{ si=(si+1)%SPEEDS.length;
+    vD.playbackRate=vR.playbackRate=SPEEDS[si]; spd.textContent=SPEEDS[si]+"×"; };
+
+  let cur=-1;
+  function show(i){
+    if(i===cur) return;
+    cur=i;
+    const s=exp.scenarios[i];
+    [...pills.children].forEach((btn,k)=>btn.setAttribute("aria-pressed",String(k===i)));
+    if(pr) pr.textContent="“"+(s.prompt||"")+"”";
+    vD.dataset.src=s.dream; vR.dataset.src=s.realized;
+    vD.src=s.dream; vR.src=s.realized;
+    vD.playbackRate=vR.playbackRate=SPEEDS[si];
+    vD.load(); vR.load();
+    scrub.value=0;
+    // a deliberate pick always starts playing, even if a previous clip was paused
+    vD.dataset.wants="1";
+    vD.play().catch(()=>{}); vR.play().catch(()=>{}); kick();
+  }
+
+  exp.scenarios.forEach((s,i)=>{
+    const b=el("button",null,s.name);
+    b.type="button"; b.setAttribute("aria-pressed","false");
+    b.onclick=()=>show(i);
+    pills.appendChild(b);
+  });
+
+  // mount the first scenario lazily: sources are set, playback waits for view
+  const s0=exp.scenarios[0];
+  vD.dataset.src=s0.dream; vR.dataset.src=s0.realized;
+  cur=0; pills.children[0].setAttribute("aria-pressed","true");
+  if(pr) pr.textContent="“"+(s0.prompt||"")+"”";
+  vio.observe(vD); vio.observe(vR);
+  addFigures(sec,exp);
+  return sec;
+}
+
+/* ---------------------------------------------------------------- build -- */
+const host=document.getElementById("sections");
+for(const exp of M) host.appendChild(exp.layout==="grid" ? buildGrid(exp) : buildPicker(exp));
+
+// the overview figure is lazy too
+const ov=document.getElementById("ovVid");
+if(ov) vio.observe(ov);
+
+/* Copy needs a secure context, which GitHub Pages provides but a file:// page
+   does not — so a failure tells the reader to copy by hand rather than
+   silently doing nothing. */
+const copyBtn=document.getElementById("citeCopy");
+if(copyBtn) copyBtn.onclick=()=>{
+  const txt=document.getElementById("citeText").textContent;
+  const done=(m)=>{ copyBtn.textContent=m; setTimeout(()=>{copyBtn.textContent="Copy";},1600); };
+  if(navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(txt).then(()=>done("Copied"),()=>done("Select and copy"));
+  else done("Select and copy");
+};
+
+/* ------------------------------------------------------------------ toc -- */
+const tocNav=document.getElementById("toc");
+const entries=[{id:"demo",short:"Game"},{id:"intro",short:"Intro"},{id:"overview",short:"Overview"}]
+  .concat(M.map(e=>({id:e.id,short:e.short})))
+  .concat([{id:"ack",short:"Acknowledgment"},{id:"citation",short:"BibTeX"}]);
+const links={};
+for(const e of entries){
+  const a=document.createElement("a");
+  a.href="#"+e.id; a.textContent=e.short;
+  tocNav.appendChild(a); links[e.id]=a;
+}
+/* Scrollspy: the heading nearest the top of the viewport wins, which behaves
+   better than "first intersecting" when a tall section fills the screen. */
+const secs=entries.map(e=>document.getElementById(e.id)).filter(Boolean);
+let ticking=false;
+function spy(){
+  ticking=false;
+  let best=secs[0], bestD=Infinity;
+  for(const s of secs){
+    const d=Math.abs(s.getBoundingClientRect().top-70);
+    if(d<bestD){ bestD=d; best=s; }
+  }
+  for(const id in links) links[id].classList.toggle("on", id===best.id);
+}
+addEventListener("scroll",()=>{ if(!ticking){ ticking=true; requestAnimationFrame(spy); } },{passive:true});
+addEventListener("resize",spy);
+spy();
+})();
+</script>
+</body>
+</html>

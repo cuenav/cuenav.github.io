@@ -1,0 +1,61 @@
+/* CueNav — shared shell: tokens, masthead, footer.
+   The rules for the page's own sections live in its <style> block. */
+:root{
+  --bg:#000000;
+  --surface:#0E0F11;
+  --surface-2:#141619;
+  --ink:#F7F7F8;
+  --ink-2:#9EA3A8;
+  --ink-3:#6B7075;
+  --rule:#232629;
+  --rule-2:#32363A;
+  --stage:#0B1114;
+  --cyan:#4CCBE0;
+  --goal:#F0584B;
+  --amber:#E5B347;
+  --ok:#5BC98C;
+  --phosphor:#00FF41;
+  --sans:"Inter","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.55;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+/* masthead */
+.masthead{padding:72px 0 34px}
+.eyebrow{font-size:14px;color:var(--ink-2);margin:0 0 20px}
+h1{
+  font-size:clamp(36px,5.6vw,64px); line-height:1.04;
+  letter-spacing:-.032em; font-weight:600; margin:0 0 18px; max-width:16ch;
+}
+.sub{font-size:clamp(17px,2vw,21px);line-height:1.45;color:var(--phosphor);
+  text-shadow:0 0 20px rgba(0,255,65,.2);max-width:54ch;margin:0 0 26px}
+.authors{font-size:17px;color:var(--ink);max-width:none;margin:0 0 10px;line-height:1.5}
+.authors sup{color:var(--ink-3)}
+.affil{font-size:15px;color:var(--ink-3);margin:0 0 28px;line-height:1.5}
+.links{display:flex;flex-wrap:wrap;gap:9px}
+.links a,.links .soon{
+  font-size:14px;font-weight:450;text-decoration:none;color:var(--ink);
+  border:1px solid var(--rule-2);padding:8px 18px;border-radius:999px;
+  transition:background .15s,border-color .15s,color .15s;
+}
+/* Same pill as the links beside it — only the label differs. Not an <a>, so it
+   cannot scroll the reader to the top or take keyboard focus while it is dead. */
+.links .soon{cursor:default;white-space:nowrap}
+.links a:hover{background:var(--ink);border-color:var(--ink);color:#000}
+.links a[aria-current]{background:var(--ink);border-color:var(--ink);color:#000}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+#demo{scroll-margin-top:24px}
+
+footer{border-top:1px solid var(--rule);padding:22px 0 46px;font-size:13px;color:var(--ink-3)}
+footer a{color:var(--ink-2)}
+
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}

@@ -1,0 +1,5 @@
+.DS_Store
+*.swp
+
+# PowerPoint lock files, should this ever sit next to one
+~$*
